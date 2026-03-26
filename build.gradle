@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group = 'com.usecase'
@@ -8,9 +9,36 @@ version = '0.1.0-SNAPSHOT'
 repositories { mavenCentral() }
 
 dependencies {
+    // Spring BOM
+    implementation platform('org.springframework.boot:spring-boot-dependencies:3.2.5')
+
+    // Spring WebFlux
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.platform:junit-platform-suite'
     testRuntimeOnly  'org.junit.platform:junit-platform-launcher'
+
+    // Reactor Test
+    testImplementation 'io.projectreactor:reactor-test'
+
+    // Lombok (forced 1.18.44+ for Java 24 compatibility)
+    compileOnly 'org.projectlombok:lombok:1.18.44'
+    annotationProcessor 'org.projectlombok:lombok:1.18.44'
+    testCompileOnly 'org.projectlombok:lombok:1.18.44'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.44'
 }
 
 test { useJUnitPlatform() }
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
+}
