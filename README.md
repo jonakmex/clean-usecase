@@ -91,6 +91,42 @@ Si algún proyecto futuro *sí* necesita despliegue desacoplado de verdad
 pena reconsiderar esto — pero como una decisión explícita para ese
 proyecto, no como default heredado sin cuestionar.
 
+### Cuando un `Request` crece: factory estático con nombre, no Builder
+
+Con 1-2 campos, `new AlgoRequest(x)` alcanza — es la forma idiomática de
+un record. Pero cuando un `Request` legítimamente se construye distinto
+según el contexto (varios campos, algunos opcionales, distintos
+"caminos" de armado), la tentación es alcanzar un `Builder` (Lombok o a
+mano). No es la herramienta correcta para eso: un builder no dice *qué
+escenario* estás construyendo con solo mirar la llamada — hay que leer
+toda la cadena para inferirlo. Un factory estático con nombre sí lo dice
+de entrada, sigue siendo un record inmutable, y no reintroduce Lombok ni
+reflexión:
+
+```java
+public record CreateOrderRequest(String customerId, String promoCode, boolean expedited, String giftMessage)
+        implements Request {
+
+    public static CreateOrderRequest standard(String customerId) {
+        return new CreateOrderRequest(customerId, null, false, null);
+    }
+
+    public static CreateOrderRequest withPromo(String customerId, String promoCode) {
+        return new CreateOrderRequest(customerId, promoCode, false, null);
+    }
+
+    public static CreateOrderRequest expeditedGift(String customerId, String giftMessage) {
+        return new CreateOrderRequest(customerId, null, true, giftMessage);
+    }
+}
+```
+
+Esto gana cuando los contextos son un conjunto enumerable y conocido
+(3-5 formas típicas de construir el objeto). Si la variación es
+genuinamente combinatoria — muchos campos opcionales independientes que
+se combinan de formas no enumerables de antemano — ahí sí un `Builder`
+evita una explosión de métodos factory; es la excepción, no el default.
+
 ## Manejo de errores: `ValidationFailure` sellado, no excepciones sueltas
 
 ```java
