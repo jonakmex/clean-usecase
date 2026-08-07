@@ -32,7 +32,12 @@ public class RequestFactoryImpl implements RequestFactory {
                 Field field = request.getClass().getDeclaredField(entry.getKey());
                 field.setAccessible(true);
                 field.set(request, entry.getValue());
-            } catch (NoSuchFieldException | IllegalAccessException ignored) {
+            } catch (NoSuchFieldException e) {
+                throw new IllegalArgumentException(
+                        "Unknown field '" + entry.getKey() + "' for " + request.getClass().getSimpleName(), e);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException(
+                        "Could not set field '" + entry.getKey() + "' on " + request.getClass().getSimpleName(), e);
             }
         }
         return request;

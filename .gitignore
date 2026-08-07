@@ -14,9 +14,10 @@ out/
 
 # Compiled
 *.class
-*.jar
 *.war
 *.ear
+/build/**/*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
 # Logs
 *.log
