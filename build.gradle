@@ -41,5 +41,13 @@ publishing {
     }
     repositories {
         mavenLocal()
+        maven {
+            name = 'codeartifact'
+            url = 'https://clubix-835952944502.d.codeartifact.us-east-1.amazonaws.com/maven/koden/'
+            credentials {
+                username = 'aws'
+                password = System.getenv('CODEARTIFACT_AUTH_TOKEN')
+            }
+        }
     }
 }
