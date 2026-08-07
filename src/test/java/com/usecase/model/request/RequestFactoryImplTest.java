@@ -79,4 +79,10 @@ class RequestFactoryImplTest {
         Assertions.assertEquals("some info", r.complex.detail.info.description);
         Assertions.assertEquals(1, r.complex.detail.info.priority);
     }
+
+    @Test
+    void should_fail_fast_when_param_name_does_not_match_any_field() {
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> requestFactory.get("FeatureRequest", Map.of("nmae", "Jonathan")));
+    }
 }
