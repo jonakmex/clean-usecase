@@ -3,12 +3,12 @@ package com.usecase.feature;
 import com.usecase.AbstractUseCase;
 import com.usecase.model.request.FeatureRequest;
 import com.usecase.model.response.FeatureResponse;
-import com.usecase.model.response.Response;
-import com.usecase.shared.ValidationException;
+import com.usecase.shared.UseCaseException;
+import com.usecase.shared.ValidationFailure;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
 
-public class FeatureUseCase extends AbstractUseCase<FeatureRequest> {
+public class FeatureUseCase extends AbstractUseCase<FeatureRequest, FeatureResponse> {
 
     // ── Guard ─────────────────────────────────────────────────────────────────
 
@@ -21,7 +21,9 @@ public class FeatureUseCase extends AbstractUseCase<FeatureRequest> {
     }
 
     private Mono<FeatureRequest> nameMustBePresent(FeatureRequest request) {
-        if (request.name == null) return Mono.error(new ValidationException("name is required"));
+        if (request.name() == null) {
+            return Mono.error(new UseCaseException(new ValidationFailure.MissingField("name")));
+        }
         return Mono.just(request);
     }
 
@@ -38,17 +40,13 @@ public class FeatureUseCase extends AbstractUseCase<FeatureRequest> {
     // ── Process ───────────────────────────────────────────────────────────────
 
     @Override
-    protected Mono<Response> process(FeatureRequest request) {
+    protected Mono<FeatureResponse> process(FeatureRequest request) {
         return Mono.just(success(request));
     }
 
     // ── Response builders ─────────────────────────────────────────────────────
 
-    private Response success(FeatureRequest request) {
-        return FeatureResponse.builder()
-                .status("SUCCESS")
-                .id(UUID.randomUUID().toString())
-                .name(request.name)
-                .build();
+    private FeatureResponse success(FeatureRequest request) {
+        return new FeatureResponse.Success(UUID.randomUUID().toString(), request.name());
     }
 }
