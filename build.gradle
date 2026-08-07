@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id 'maven-publish'
 }
 
@@ -16,8 +16,11 @@ repositories { mavenCentral() }
 
 dependencies {
     // Reactor BOM — el dominio solo necesita Mono/Flux, nada de Spring/HTTP.
+    // reactor-core es `api`: Mono/Flux son parte de la firma pública de
+    // UseCase.execute(), cualquier consumidor los necesita en su propio
+    // classpath de compilación, no solo en runtime.
     implementation platform('io.projectreactor:reactor-bom:2023.0.5')
-    implementation 'io.projectreactor:reactor-core'
+    api 'io.projectreactor:reactor-core'
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
