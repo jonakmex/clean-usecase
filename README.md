@@ -191,8 +191,10 @@ desactualizado):
 - **`codeartifact-publish`** — publica cualquier jar de este ecosistema a
   CodeArtifact (dominio `clubix`, repo `koden`).
 
-`catalog` (en `projects/catalog`) es el primer proyecto de referencia que
-recorrió este flujo completo, de features a implementación en verde —
+`catalog` (en `projects/catalog/`, con `catalog-core`, `catalog-api`,
+`catalog-repo-h2` y `catalog-features` como repos hermanos adentro) es el
+primer proyecto de referencia que recorrió este flujo completo, de
+features a implementación en verde —
 sirve como ejemplo vivo cuando el código de aquí no alcance a explicar
 algo.
 
