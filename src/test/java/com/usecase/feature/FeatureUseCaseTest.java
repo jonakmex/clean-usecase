@@ -1,55 +1,34 @@
 package com.usecase.feature;
 
-import com.usecase.UseCase;
-import com.usecase.UseCaseFactory;
-import com.usecase.UseCaseFactoryImpl;
-import com.usecase.model.request.Request;
-import com.usecase.model.request.RequestFactory;
-import com.usecase.model.request.RequestFactoryImpl;
+import com.usecase.model.request.FeatureRequest;
 import com.usecase.model.response.FeatureResponse;
-import com.usecase.shared.ValidationException;
+import com.usecase.shared.UseCaseException;
+import com.usecase.shared.ValidationFailure;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
-import java.util.Map;
 
 class FeatureUseCaseTest {
 
-    private static UseCaseFactory useCaseFactory;
-    private static RequestFactory requestFactory;
-
-    @BeforeAll
-    static void setup() {
-        useCaseFactory = new UseCaseFactoryImpl();
-        requestFactory = new RequestFactoryImpl("com.usecase.model.request");
-    }
+    private final FeatureUseCase useCase = new FeatureUseCase();
 
     @Test
     void should_return_success_when_name_is_provided() {
-        //Arrange
-        UseCase useCase = useCaseFactory.get("FeatureUseCase");
-        Request featureRequest = requestFactory.get("FeatureRequest", Map.of("name", "Jonathan"));
-        //Execute & Assert
-        StepVerifier.create(useCase.execute(featureRequest))
+        StepVerifier.create(useCase.execute(new FeatureRequest("Jonathan")))
                 .assertNext(response -> {
-                    Assertions.assertInstanceOf(FeatureResponse.class, response);
-                    FeatureResponse featureResponse = (FeatureResponse) response;
-                    Assertions.assertEquals("SUCCESS", featureResponse.status);
-                    Assertions.assertNotNull(featureResponse.id);
-                    Assertions.assertEquals("Jonathan", featureResponse.name);
+                    Assertions.assertInstanceOf(FeatureResponse.Success.class, response);
+                    FeatureResponse.Success success = (FeatureResponse.Success) response;
+                    Assertions.assertNotNull(success.id());
+                    Assertions.assertEquals("Jonathan", success.name());
                 })
                 .verifyComplete();
     }
 
     @Test
     void should_signal_error_when_name_is_null() {
-        //Arrange
-        UseCase useCase = useCaseFactory.get("FeatureUseCase");
-        Request featureRequest = requestFactory.get("FeatureRequest", Map.of());
-        //Execute & Assert
-        StepVerifier.create(useCase.execute(featureRequest))
-                .verifyErrorMatches(e -> e instanceof ValidationException
-                        && "name is required".equals(e.getMessage()));
+        StepVerifier.create(useCase.execute(new FeatureRequest(null)))
+                .verifyErrorMatches(e -> e instanceof UseCaseException uce
+                        && uce.failure() instanceof ValidationFailure.MissingField missingField
+                        && "name".equals(missingField.field()));
     }
 }

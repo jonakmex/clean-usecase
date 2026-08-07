@@ -1,10 +1,11 @@
 package com.usecase.model.response;
 
-import lombok.experimental.SuperBuilder;
+public sealed interface FeatureResponse extends Response
+        permits FeatureResponse.Success, FeatureResponse.Error {
 
-@SuperBuilder
-public class FeatureResponse extends Response {
-    public String id;
-    public String name;
+    record Success(String id, String name) implements FeatureResponse {
+    }
+
+    record Error(String reason) implements FeatureResponse {
+    }
 }
-
