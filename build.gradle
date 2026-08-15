@@ -44,12 +44,16 @@ publishing {
     }
     repositories {
         mavenLocal()
+
+        // GitHub Packages. Sustituye a CodeArtifact, cuyo dominio 'clubix' ya
+        // no existe: publicar ahi fallaba y, peor, consumirlo tambien — este
+        // jar solo se resolvia desde el ~/.m2 de una maquina concreta.
         maven {
-            name = 'codeartifact'
-            url = 'https://clubix-835952944502.d.codeartifact.us-east-1.amazonaws.com/maven/koden/'
+            name = 'githubPackages'
+            url = 'https://maven.pkg.github.com/jonakmex/clean-usecase'
             credentials {
-                username = 'aws'
-                password = System.getenv('CODEARTIFACT_AUTH_TOKEN')
+                username = System.getenv('GITHUB_ACTOR') ?: 'jonakmex'
+                password = System.getenv('GITHUB_TOKEN')
             }
         }
     }
