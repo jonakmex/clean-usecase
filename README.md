@@ -49,7 +49,7 @@ right way is to resolve existence **inside** the same reactive chain in
 protected Mono<GetCatalogEntryResponse> process(GetCatalogEntryRequest request) {
     return catalogGateway.findById(request.id())
             .switchIfEmpty(Mono.error(new UseCaseException(
-                    new ValidationFailure.NotFound("catalog entry", request.id()))))
+                    new DomainFailure.NotFound("catalog entry", request.id()))))
             .map(entry -> new GetCatalogEntryResponse(entry.id(), entry.description()));
 }
 ```
@@ -133,24 +133,24 @@ many independent optional fields combined in ways you can't enumerate up
 front — then a `Builder` does avoid an explosion of factory methods; it's
 the exception, not the default.
 
-## Error handling: sealed `ValidationFailure`, not loose exceptions
+## Error handling: sealed `DomainFailure`, not loose exceptions
 
 ```java
-public sealed interface ValidationFailure permits
-        ValidationFailure.MissingField,
-        ValidationFailure.InvalidValue,
-        ValidationFailure.NotFound,
-        ValidationFailure.Forbidden {
+public sealed interface DomainFailure permits
+        DomainFailure.MissingField,
+        DomainFailure.InvalidValue,
+        DomainFailure.NotFound,
+        DomainFailure.Forbidden {
     String message();
-    record MissingField(String field) implements ValidationFailure { ... }
-    record InvalidValue(String field, String reason) implements ValidationFailure { ... }
-    record NotFound(String entity, String id) implements ValidationFailure { ... }
-    record Forbidden(String reason) implements ValidationFailure { ... }
+    record MissingField(String field) implements DomainFailure { ... }
+    record InvalidValue(String field, String reason) implements DomainFailure { ... }
+    record NotFound(String entity, String id) implements DomainFailure { ... }
+    record Forbidden(String reason) implements DomainFailure { ... }
 }
 
 public final class UseCaseException extends RuntimeException {
-    public UseCaseException(ValidationFailure failure) { ... }
-    public ValidationFailure failure() { ... }
+    public UseCaseException(DomainFailure failure) { ... }
+    public DomainFailure failure() { ... }
 }
 ```
 
@@ -159,12 +159,17 @@ that **is** the idiomatic way to propagate a failure, the equivalent of
 an `Either`'s `Left` channel already built into the operator chain. What
 changes is what travels there: not a generic `RuntimeException` with a
 `String`, but a sealed type. Whoever consumes the error can do an
-exhaustive `switch` over `ValidationFailure` — if a new variant is added
+exhaustive `switch` over `DomainFailure` — if a new variant is added
 tomorrow, code that doesn't handle it stops compiling, instead of
 silently falling into a default branch.
 
+It was called `ValidationFailure` up to 0.3.x. Renamed because most
+variants aren't validation at all — `NotFound`, `Conflict`, `Forbidden`
+and `NotActive` are business outcomes discovered while doing the work,
+not checks on the input.
+
 "Not found" is not modeled as a `Response` variant — it travels through
-the error channel like any other `ValidationFailure`. A sealed `Response`
+the error channel like any other `DomainFailure`. A sealed `Response`
 does make sense when *success* has different shapes (see
 `FeatureResponse.Success`/`Error` in the tests as an example) — there it
 pays to seal the concrete `Response` itself, never this jar's shared

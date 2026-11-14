@@ -3,7 +3,7 @@ package com.usecase.feature;
 import com.usecase.model.request.FeatureRequest;
 import com.usecase.model.response.FeatureResponse;
 import com.usecase.shared.UseCaseException;
-import com.usecase.shared.ValidationFailure;
+import com.usecase.shared.DomainFailure;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
@@ -28,7 +28,7 @@ class FeatureUseCaseTest {
     void should_signal_error_when_name_is_null() {
         StepVerifier.create(useCase.execute(new FeatureRequest(null)))
                 .verifyErrorMatches(e -> e instanceof UseCaseException uce
-                        && uce.failure() instanceof ValidationFailure.MissingField missingField
+                        && uce.failure() instanceof DomainFailure.MissingField missingField
                         && "name".equals(missingField.field()));
     }
 }

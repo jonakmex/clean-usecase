@@ -4,7 +4,7 @@ import com.usecase.AbstractUseCase;
 import com.usecase.model.request.FeatureRequest;
 import com.usecase.model.response.FeatureResponse;
 import com.usecase.shared.UseCaseException;
-import com.usecase.shared.ValidationFailure;
+import com.usecase.shared.DomainFailure;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
 
@@ -22,7 +22,7 @@ public class FeatureUseCase extends AbstractUseCase<FeatureRequest, FeatureRespo
 
     private Mono<FeatureRequest> nameMustBePresent(FeatureRequest request) {
         if (request.name() == null) {
-            return Mono.error(new UseCaseException(new ValidationFailure.MissingField("name")));
+            return Mono.error(new UseCaseException(new DomainFailure.MissingField("name")));
         }
         return Mono.just(request);
     }

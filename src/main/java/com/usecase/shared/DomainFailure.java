@@ -2,18 +2,18 @@ package com.usecase.shared;
 
 import java.util.Objects;
 
-public sealed interface ValidationFailure permits
-        ValidationFailure.MissingField,
-        ValidationFailure.InvalidValue,
-        ValidationFailure.NotFound,
-        ValidationFailure.Forbidden,
-        ValidationFailure.NotActive,
-        ValidationFailure.Conflict,
-        ValidationFailure.Custom {
+public sealed interface DomainFailure permits
+        DomainFailure.MissingField,
+        DomainFailure.InvalidValue,
+        DomainFailure.NotFound,
+        DomainFailure.Forbidden,
+        DomainFailure.NotActive,
+        DomainFailure.Conflict,
+        DomainFailure.Custom {
 
     String message();
 
-    record MissingField(String field) implements ValidationFailure {
+    record MissingField(String field) implements DomainFailure {
         public MissingField {
             Objects.requireNonNull(field, "field must not be null");
         }
@@ -24,7 +24,7 @@ public sealed interface ValidationFailure permits
         }
     }
 
-    record InvalidValue(String field, String reason) implements ValidationFailure {
+    record InvalidValue(String field, String reason) implements DomainFailure {
         public InvalidValue {
             Objects.requireNonNull(field, "field must not be null");
             Objects.requireNonNull(reason, "reason must not be null");
@@ -36,7 +36,7 @@ public sealed interface ValidationFailure permits
         }
     }
 
-    record NotFound(String entity, String id) implements ValidationFailure {
+    record NotFound(String entity, String id) implements DomainFailure {
         public NotFound {
             Objects.requireNonNull(entity, "entity must not be null");
             Objects.requireNonNull(id, "id must not be null");
@@ -48,7 +48,7 @@ public sealed interface ValidationFailure permits
         }
     }
 
-    record Forbidden(String reason) implements ValidationFailure {
+    record Forbidden(String reason) implements DomainFailure {
         public Forbidden {
             Objects.requireNonNull(reason, "reason must not be null");
         }
@@ -64,7 +64,7 @@ public sealed interface ValidationFailure permits
      * inactive, a business whose subscription lapsed). Distinct from
      * {@link NotFound} — the entity is real, just not currently eligible.
      */
-    record NotActive(String entity, String id) implements ValidationFailure {
+    record NotActive(String entity, String id) implements DomainFailure {
         public NotActive {
             Objects.requireNonNull(entity, "entity must not be null");
             Objects.requireNonNull(id, "id must not be null");
@@ -80,7 +80,7 @@ public sealed interface ValidationFailure permits
      * A uniqueness rule was violated — something with this identity already
      * exists (e.g. a phone number already registered as a customer).
      */
-    record Conflict(String entity, String id) implements ValidationFailure {
+    record Conflict(String entity, String id) implements DomainFailure {
         public Conflict {
             Objects.requireNonNull(entity, "entity must not be null");
             Objects.requireNonNull(id, "id must not be null");
@@ -99,7 +99,7 @@ public sealed interface ValidationFailure permits
      * consumer defines and owns entirely — this library never needs to
      * change again as new domain-specific reasons come up.
      */
-    record Custom<T extends Enum<T>>(T reason, String message) implements ValidationFailure {
+    record Custom<T extends Enum<T>>(T reason, String message) implements DomainFailure {
         public Custom {
             Objects.requireNonNull(reason, "reason must not be null");
             Objects.requireNonNull(message, "message must not be null");
