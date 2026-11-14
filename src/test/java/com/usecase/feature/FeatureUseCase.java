@@ -3,21 +3,33 @@ package com.usecase.feature;
 import com.usecase.AbstractUseCase;
 import com.usecase.model.request.FeatureRequest;
 import com.usecase.model.response.FeatureResponse;
-import com.usecase.shared.UseCaseException;
 import com.usecase.shared.DomainFailure;
+import com.usecase.shared.UseCaseException;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 public class FeatureUseCase extends AbstractUseCase<FeatureRequest, FeatureResponse> {
 
-    // ── Guard ─────────────────────────────────────────────────────────────────
+    private final UserGateway userGateway;
+
+    public FeatureUseCase(UserGateway userGateway) {
+        this.userGateway = userGateway;
+    }
+
+    // ── Guard: only checks that need no fetch ─────────────────────────────────
 
     @Override
     protected Mono<FeatureRequest> guard(FeatureRequest request) {
         return Mono.just(request)
-                .flatMap(this::nameMustBePresent)
-                .flatMap(this::userMustExist)
-                .flatMap(this::userMustHavePermission);
+                .flatMap(this::userIdMustBePresent)
+                .flatMap(this::nameMustBePresent);
+    }
+
+    private Mono<FeatureRequest> userIdMustBePresent(FeatureRequest request) {
+        if (request.userId() == null) {
+            return Mono.error(new UseCaseException(new DomainFailure.MissingField("userId")));
+        }
+        return Mono.just(request);
     }
 
     private Mono<FeatureRequest> nameMustBePresent(FeatureRequest request) {
@@ -27,21 +39,17 @@ public class FeatureUseCase extends AbstractUseCase<FeatureRequest, FeatureRespo
         return Mono.just(request);
     }
 
-    private Mono<FeatureRequest> userMustExist(FeatureRequest request) {
-        // userGateway.exists(request.userId)
-        return Mono.just(request);
-    }
-
-    private Mono<FeatureRequest> userMustHavePermission(FeatureRequest request) {
-        // permissionGateway.hasPermission(request.userId, "feature:execute")
-        return Mono.just(request);
-    }
-
-    // ── Process ───────────────────────────────────────────────────────────────
+    // ── Process: one fetch, existence and permission resolved on its result ──
 
     @Override
     protected Mono<FeatureResponse> process(FeatureRequest request) {
-        return Mono.just(success(request));
+        return userGateway.findById(request.userId())
+                .switchIfEmpty(Mono.error(() -> new UseCaseException(
+                        new DomainFailure.NotFound("user", request.userId()))))
+                .flatMap(user -> user.canCreateFeatures()
+                        ? Mono.just(success(request))
+                        : Mono.error(new UseCaseException(
+                                new DomainFailure.Forbidden("user cannot create features"))));
     }
 
     // ── Response builders ─────────────────────────────────────────────────────

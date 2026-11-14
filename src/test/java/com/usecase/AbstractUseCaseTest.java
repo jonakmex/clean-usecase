@@ -43,7 +43,7 @@ class AbstractUseCaseTest {
             }
         };
 
-        StepVerifier.create(emptyGuard.execute(new FeatureRequest("name")))
+        StepVerifier.create(emptyGuard.execute(new FeatureRequest("u-1", "name")))
                 .verifyErrorMatches(e -> e instanceof IllegalStateException
                         && "guard completed empty".equals(e.getMessage()));
         assertFalse(processInvoked.get());

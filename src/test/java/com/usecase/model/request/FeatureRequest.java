@@ -1,4 +1,4 @@
 package com.usecase.model.request;
 
-public record FeatureRequest(String name) implements Request {
+public record FeatureRequest(String userId, String name) implements Request {
 }
