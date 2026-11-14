@@ -12,6 +12,7 @@ public abstract class AbstractUseCase<R extends Request, S extends Response> imp
     public final Mono<S> execute(R request) {
         return Mono.fromSupplier(() -> Objects.requireNonNull(request, "request must not be null"))
                 .flatMap(this::guard)
+                .switchIfEmpty(Mono.error(() -> new IllegalStateException("guard completed empty")))
                 .flatMap(this::process);
     }
 

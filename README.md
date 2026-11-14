@@ -20,7 +20,9 @@ public interface UseCase<R extends Request, S extends Response> {
 public abstract class AbstractUseCase<R extends Request, S extends Response> implements UseCase<R, S> {
     public final Mono<S> execute(R request) {
         return Mono.fromSupplier(() -> Objects.requireNonNull(request, "request must not be null"))
-                .flatMap(this::guard).flatMap(this::process);
+                .flatMap(this::guard)
+                .switchIfEmpty(Mono.error(() -> new IllegalStateException("guard completed empty")))
+                .flatMap(this::process);
     }
     protected Mono<R> guard(R request) { return Mono.just(request); }
     protected abstract Mono<S> process(R request);
@@ -30,7 +32,10 @@ public abstract class AbstractUseCase<R extends Request, S extends Response> imp
 `UseCase` is parameterized by its concrete `Request`/`Response` — there
 is never an unchecked cast between them. Each use case implements
 `process()` (the actual work) and optionally `guard()` (validation before
-doing that work).
+doing that work). `guard()` must either emit the request or signal an
+error — completing empty is a programming mistake, so `execute()` turns
+it into an `IllegalStateException` instead of silently skipping
+`process()`.
 
 ### `guard()` vs `process()`: one gateway call, not two
 
