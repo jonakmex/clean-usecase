@@ -140,12 +140,18 @@ public sealed interface DomainFailure permits
         DomainFailure.MissingField,
         DomainFailure.InvalidValue,
         DomainFailure.NotFound,
-        DomainFailure.Forbidden {
+        DomainFailure.Forbidden,
+        DomainFailure.NotActive,
+        DomainFailure.Conflict,
+        DomainFailure.Custom {
     String message();
     record MissingField(String field) implements DomainFailure { ... }
     record InvalidValue(String field, String reason) implements DomainFailure { ... }
     record NotFound(String entity, String id) implements DomainFailure { ... }
     record Forbidden(String reason) implements DomainFailure { ... }
+    record NotActive(String entity, String id) implements DomainFailure { ... }
+    record Conflict(String entity, String id) implements DomainFailure { ... }
+    record Custom<T extends Enum<T>>(T reason, String message) implements DomainFailure { ... }
 }
 
 public final class UseCaseException extends RuntimeException {
@@ -162,6 +168,11 @@ changes is what travels there: not a generic `RuntimeException` with a
 exhaustive `switch` over `DomainFailure` — if a new variant is added
 tomorrow, code that doesn't handle it stops compiling, instead of
 silently falling into a default branch.
+
+`Custom` is the escape hatch for reasons specific to one consumer's
+domain (e.g. insufficient funds in a ledger): the consumer defines its
+own enum and this jar doesn't need a new variant for it. Every component
+of every variant is non-null — the records reject `null` at construction.
 
 It was called `ValidationFailure` up to 0.3.x. Renamed because most
 variants aren't validation at all — `NotFound`, `Conflict`, `Forbidden`
@@ -201,14 +212,17 @@ stale):
 - **`cucumber-red-green`** — wires the external `.feature` files to the
   code via Cucumber, use cases red first, implementation afterwards
   without touching the already-approved contract.
-- **`codeartifact-publish`** — publishes any jar in this ecosystem to
-  CodeArtifact (domain `clubix`, repo `koden`).
+
+Publishing this jar is no longer a skill: CI does it from a tag (see
+[Releasing](#releasing)). The old CodeArtifact target (domain `clubix`)
+no longer exists.
 
 `catalog` (in `projects/catalog/`, with `catalog-core`, `catalog-api`,
-`catalog-repo-h2` and `catalog-features` as sibling repos inside) is the
-first reference project that went through this full flow, from features
-to a green implementation — it serves as a living example when the code
-here isn't enough to explain something.
+`catalog-repo-postgres`, `catalog-web`, `catalog-infra` and
+`catalog-features` as sibling repos inside) is the first reference
+project that went through this full flow, from features to a green
+implementation — it serves as a living example when the code here isn't
+enough to explain something.
 
 ## Versioning
 
@@ -216,6 +230,12 @@ Pre-1.0 SemVer: minor bump for incompatible changes (while the major is
 still 0), patch for compatible changes. `0.1.0 → 0.2.0` was due to
 removing the reflective factories and parameterizing `UseCase` — an
 incompatible API change.
+
+- `0.3.0` added `NotActive`, `Conflict` and `Custom`. New variants of a
+  sealed interface break consumers' exhaustive `switch`es, hence a minor.
+- `0.4.0` renamed `ValidationFailure` to `DomainFailure`, made an empty
+  `guard()` signal an error instead of skipping `process()`, and made
+  `DomainFailure` records reject `null` components.
 
 ## Releasing
 
