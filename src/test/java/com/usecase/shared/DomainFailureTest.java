@@ -9,6 +9,30 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class DomainFailureTest {
 
     @Test
+    void missing_field_reports_field_as_required() {
+        DomainFailure failure = new DomainFailure.MissingField("name");
+        assertEquals("name is required", failure.message());
+    }
+
+    @Test
+    void invalid_value_reports_field_and_reason() {
+        DomainFailure failure = new DomainFailure.InvalidValue("phone", "must have 10 digits");
+        assertEquals("phone: must have 10 digits", failure.message());
+    }
+
+    @Test
+    void not_found_reports_entity_and_id() {
+        DomainFailure failure = new DomainFailure.NotFound("Customer", "5511566012");
+        assertEquals("Customer not found: 5511566012", failure.message());
+    }
+
+    @Test
+    void forbidden_reports_reason_verbatim() {
+        DomainFailure failure = new DomainFailure.Forbidden("user cannot create features");
+        assertEquals("user cannot create features", failure.message());
+    }
+
+    @Test
     void not_active_reports_entity_and_id() {
         DomainFailure failure = new DomainFailure.NotActive("Business", "5511566012");
         assertEquals("Business is not active: 5511566012", failure.message());
