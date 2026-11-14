@@ -10,6 +10,9 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    // Published next to the jar so consumers get sources and docs in the IDE.
+    withSourcesJar()
+    withJavadocJar()
 }
 
 repositories { mavenCentral() }
@@ -37,6 +40,10 @@ dependencies {
 }
 
 test { useJUnitPlatform() }
+
+// Records and one-line contracts don't need a Javadoc comment each; keep
+// the rest of doclint (broken HTML, bad references) on.
+javadoc { options.addBooleanOption('Xdoclint:all,-missing', true) }
 
 publishing {
     publications {
