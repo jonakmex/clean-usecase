@@ -171,7 +171,7 @@ not checks on the input.
 "Not found" is not modeled as a `Response` variant — it travels through
 the error channel like any other `DomainFailure`. A sealed `Response`
 does make sense when *success* has different shapes (see
-`FeatureResponse.Success`/`Error` in the tests as an example) — there it
+`FeatureResponse.Created`/`PendingApproval` in the tests as an example) — there it
 pays to seal the concrete `Response` itself, never this jar's shared
 `Response` (its `permits` would have to list types that don't exist yet
 when this jar is compiled — downstream projects depend on the domain,

@@ -13,8 +13,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 class FeatureUseCaseTest {
 
-    private static final User ALLOWED = new User("u-1", true);
-    private static final User NOT_ALLOWED = new User("u-2", false);
+    private static final User ALLOWED = new User("u-1", true, false);
+    private static final User NEEDS_APPROVAL = new User("u-3", true, true);
+    private static final User NOT_ALLOWED = new User("u-2", false, false);
 
     private final AtomicInteger gatewayCalls = new AtomicInteger();
 
@@ -26,17 +27,30 @@ class FeatureUseCaseTest {
     }
 
     @Test
-    void should_return_success_when_user_exists_and_is_allowed() {
+    void should_return_created_when_user_exists_and_is_allowed() {
         StepVerifier.create(useCaseWith(id -> Mono.just(ALLOWED))
                         .execute(new FeatureRequest(ALLOWED.id(), "Jonathan")))
                 .assertNext(response -> {
-                    Assertions.assertInstanceOf(FeatureResponse.Success.class, response);
-                    FeatureResponse.Success success = (FeatureResponse.Success) response;
-                    Assertions.assertNotNull(success.id());
-                    Assertions.assertEquals("Jonathan", success.name());
+                    FeatureResponse.Created created =
+                            Assertions.assertInstanceOf(FeatureResponse.Created.class, response);
+                    Assertions.assertNotNull(created.id());
+                    Assertions.assertEquals("Jonathan", created.name());
                 })
                 .verifyComplete();
         Assertions.assertEquals(1, gatewayCalls.get());
+    }
+
+    @Test
+    void should_return_pending_approval_when_user_requires_approval() {
+        StepVerifier.create(useCaseWith(id -> Mono.just(NEEDS_APPROVAL))
+                        .execute(new FeatureRequest(NEEDS_APPROVAL.id(), "Jonathan")))
+                .assertNext(response -> {
+                    FeatureResponse.PendingApproval pending =
+                            Assertions.assertInstanceOf(FeatureResponse.PendingApproval.class, response);
+                    Assertions.assertNotNull(pending.id());
+                    Assertions.assertEquals("Jonathan", pending.name());
+                })
+                .verifyComplete();
     }
 
     @Test

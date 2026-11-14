@@ -16,7 +16,7 @@ class AbstractUseCaseTest {
             new AbstractUseCase<>() {
                 @Override
                 protected Mono<FeatureResponse> process(FeatureRequest request) {
-                    return Mono.just(new FeatureResponse.Success("id", request.name()));
+                    return Mono.just(new FeatureResponse.Created("id", request.name()));
                 }
             };
 
@@ -39,7 +39,7 @@ class AbstractUseCaseTest {
             @Override
             protected Mono<FeatureResponse> process(FeatureRequest request) {
                 processInvoked.set(true);
-                return Mono.just(new FeatureResponse.Success("id", request.name()));
+                return Mono.just(new FeatureResponse.Created("id", request.name()));
             }
         };
 

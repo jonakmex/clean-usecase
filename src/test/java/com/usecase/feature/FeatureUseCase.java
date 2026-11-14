@@ -47,14 +47,17 @@ public class FeatureUseCase extends AbstractUseCase<FeatureRequest, FeatureRespo
                 .switchIfEmpty(Mono.error(() -> new UseCaseException(
                         new DomainFailure.NotFound("user", request.userId()))))
                 .flatMap(user -> user.canCreateFeatures()
-                        ? Mono.just(success(request))
+                        ? Mono.just(respond(user, request))
                         : Mono.error(new UseCaseException(
                                 new DomainFailure.Forbidden("user cannot create features"))));
     }
 
     // ── Response builders ─────────────────────────────────────────────────────
 
-    private FeatureResponse success(FeatureRequest request) {
-        return new FeatureResponse.Success(UUID.randomUUID().toString(), request.name());
+    private FeatureResponse respond(User user, FeatureRequest request) {
+        String id = UUID.randomUUID().toString();
+        return user.requiresApproval()
+                ? new FeatureResponse.PendingApproval(id, request.name())
+                : new FeatureResponse.Created(id, request.name());
     }
 }

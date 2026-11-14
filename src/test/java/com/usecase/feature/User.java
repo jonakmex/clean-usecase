@@ -1,4 +1,4 @@
 package com.usecase.feature;
 
-public record User(String id, boolean canCreateFeatures) {
+public record User(String id, boolean canCreateFeatures, boolean requiresApproval) {
 }
