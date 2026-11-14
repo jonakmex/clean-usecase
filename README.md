@@ -246,7 +246,22 @@ happens only from a `v*` tag, and only if the tag matches the version in
 
 1. Set `version = 'X.Y.Z'` (no `-SNAPSHOT`) in `build.gradle` and commit.
 2. `git tag vX.Y.Z && git push origin main vX.Y.Z`.
-3. Bump to the next `-SNAPSHOT` and commit.
+3. Once the workflow has published it, set `apiBaseline=X.Y.Z` in
+   `gradle.properties`, bump to the next **patch** `-SNAPSHOT`
+   (`X.Y.(Z+1)-SNAPSHOT`) and commit.
+
+### API compatibility
+
+`apiCheck` (japicmp) compares the jar against the `apiBaseline` release.
+While the version shares the baseline's major.minor, any binary- or
+source-incompatible change fails the build. That's why step 3 bumps the
+patch, not the minor: a breaking change then forces a deliberate edit to
+the next minor (pre-1.0 SemVer), instead of slipping into a patch release
+that every consumer would pick up as safe.
+
+It runs as part of `check` on CI. Locally, run `./gradlew apiCheck` with
+`GITHUB_TOKEN` set to a PAT that has `read:packages`; the report lands in
+`build/reports/apiCheck.txt`.
 
 The workflow publishes with the run's own `GITHUB_TOKEN` — no secrets to
 configure. Release versions are immutable in GitHub Packages, so a tag

@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
+    id 'me.champeau.gradle.japicmp' version '0.4.6'
 }
 
 group = 'com.usecase'
@@ -15,7 +16,19 @@ java {
     withJavadocJar()
 }
 
-repositories { mavenCentral() }
+repositories {
+    mavenCentral()
+
+    // Only to resolve the API baseline (a previous release of this jar).
+    maven {
+        url = 'https://maven.pkg.github.com/jonakmex/clean-usecase'
+        credentials {
+            username = System.getenv('GITHUB_ACTOR') ?: 'jonakmex'
+            password = System.getenv('GITHUB_TOKEN')
+        }
+        content { includeGroup 'com.usecase' }
+    }
+}
 
 dependencies {
     // Reactor BOM — the domain only needs Mono/Flux, no Spring/HTTP.
@@ -44,6 +57,37 @@ test { useJUnitPlatform() }
 // Records and one-line contracts don't need a Javadoc comment each; keep
 // the rest of doclint (broken HTML, bad references) on.
 javadoc { options.addBooleanOption('Xdoclint:all,-missing', true) }
+
+// API compatibility against the last release (`apiBaseline` in
+// gradle.properties). Binary-incompatible changes fail the check while the
+// version keeps the baseline's major.minor; bumping the minor (pre-1.0
+// SemVer) is the explicit way to allow them. Skipped until a baseline exists.
+def apiBaseline = providers.gradleProperty('apiBaseline').orNull
+def majorMinor = { String v -> v.tokenize('.-').take(2) }
+
+tasks.register('apiCheck', me.champeau.gradle.japicmp.JapicmpTask) {
+    group = 'verification'
+    description = "Checks binary compatibility against release ${apiBaseline ?: '(none yet)'}"
+    onlyIf('apiBaseline is set') { apiBaseline != null }
+    if (apiBaseline) {
+        // Detached, so the baseline jar stays off every other classpath.
+        def baseline = configurations.detachedConfiguration(
+                dependencies.create("com.usecase:clean-usecase:${apiBaseline}@jar"))
+        oldClasspath.from(baseline)
+        def sameMinor = majorMinor(version.toString()) == majorMinor(apiBaseline)
+        failOnModification = sameMinor
+        failOnSourceIncompatibility = sameMinor
+    }
+    newClasspath.from(tasks.named('jar'))
+    onlyBinaryIncompatibleModified = true
+    txtOutputFile = layout.buildDirectory.file('reports/apiCheck.txt')
+}
+
+// CI has a GITHUB_TOKEN to fetch the baseline; locally run `./gradlew apiCheck`
+// with GITHUB_TOKEN set to a PAT that has read:packages.
+if (System.getenv('CI')) {
+    tasks.named('check') { dependsOn 'apiCheck' }
+}
 
 publishing {
     publications {
