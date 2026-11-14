@@ -1,16 +1,16 @@
 # clean-usecase
 
-Jar base para construir dominios reactivos (Java 21 + Reactor) siguiendo la
-arquitectura de casos de uso propuesta por Uncle Bob. Es lenguaje de
-negocio puro: sin Spring, sin HTTP, sin JDBC, sin ningún detalle de
-implementación — eso se paga con `DomainPurityTest` (ArchUnit), no con
-disciplina.
+Base jar for building reactive domains (Java 21 + Reactor) following the
+use-case architecture proposed by Uncle Bob. It is pure business
+language: no Spring, no HTTP, no JDBC, no implementation details of any
+kind — and that is enforced by `DomainPurityTest` (ArchUnit), not by
+discipline.
 
-Este documento explica el **por qué** de cada decisión. El código explica
-el qué; los commits explican el cuándo; esto explica el porqué, para que
-no se pierda cuando ya no esté fresco en la cabeza de nadie.
+This document explains the **why** behind each decision. The code
+explains the what; the commits explain the when; this explains the why,
+so it isn't lost once it's no longer fresh in anyone's head.
 
-## Los contratos base
+## The base contracts
 
 ```java
 public interface UseCase<R extends Request, S extends Response> {
@@ -27,17 +27,17 @@ public abstract class AbstractUseCase<R extends Request, S extends Response> imp
 }
 ```
 
-`UseCase` está parametrizado por su `Request`/`Response` concretos —
-nunca hay un cast sin chequear entre ellos. Cada caso de uso implementa
-`process()` (el trabajo real) y opcionalmente `guard()` (validación antes
-de hacer ese trabajo).
+`UseCase` is parameterized by its concrete `Request`/`Response` — there
+is never an unchecked cast between them. Each use case implements
+`process()` (the actual work) and optionally `guard()` (validation before
+doing that work).
 
-### `guard()` vs `process()`: una sola llamada al gateway, no dos
+### `guard()` vs `process()`: one gateway call, not two
 
-La tentación natural es poner "¿existe esto?" en `guard()` y el trabajo
-real en `process()` — pero eso son dos viajes al mismo dato. La forma
-correcta es resolver la existencia **dentro** de la misma cadena reactiva
-de `process()`, encadenando el fetch con el resultado:
+The natural temptation is to put "does this exist?" in `guard()` and the
+actual work in `process()` — but that's two trips to the same data. The
+right way is to resolve existence **inside** the same reactive chain in
+`process()`, chaining the fetch with the result:
 
 ```java
 @Override
@@ -49,60 +49,60 @@ protected Mono<GetCatalogEntryResponse> process(GetCatalogEntryRequest request) 
 }
 ```
 
-`guard()` se reserva para validaciones que **no** requieren un fetch (un
-campo obligatorio ausente, por ejemplo) — esas sí son baratas y no ganan
-nada por vivir dentro de `process()`. Si un método del gateway ya señala
-"no existe" con `Mono.empty()` (como `update`/`deleteById`), no hace falta
-un `findById` previo — se encadena directo sobre esa llamada.
+`guard()` is reserved for validations that do **not** require a fetch (a
+missing required field, for example) — those are cheap and gain nothing
+from living inside `process()`. If a gateway method already signals
+"doesn't exist" with `Mono.empty()` (like `update`/`deleteById`), there's
+no need for a prior `findById` — chain directly on that call.
 
-Este patrón se tomó de una implementación anterior (`QueryBalanceUseCase`
-en `clubix-core`, contra `clean-usecase` 0.1.0) y se generalizó al
-reimplementar `catalog-domain`.
+This pattern was taken from an earlier implementation
+(`QueryBalanceUseCase` in `clubix-core`, against `clean-usecase` 0.1.0)
+and generalized when reimplementing `catalog-domain`.
 
-## `Request`/`Response`: records, no reflexión
+## `Request`/`Response`: records, not reflection
 
 ```java
 public interface Request {}
 public interface Response {}
 ```
 
-Son interfaces marcador vacías — los tipos concretos son `record`,
-inmutables, construidos directamente por quien los usa. **No existe**
-`RequestFactory`/`UseCaseFactory` resolviendo esto por nombre en runtime;
-existieron en versiones anteriores y se eliminaron a propósito.
+They are empty marker interfaces — the concrete types are immutable
+`record`s, constructed directly by whoever uses them. There is **no**
+`RequestFactory`/`UseCaseFactory` resolving them by name at runtime;
+those existed in earlier versions and were removed on purpose.
 
-La razón original de esa reflexión era "reducir el acoplamiento del HTTP
-layer contra el dominio, siguiendo a Uncle Bob" — pero eso confunde dos
-cosas distintas:
+The original reason for that reflection was "reduce the HTTP layer's
+coupling to the domain, following Uncle Bob" — but that conflates two
+different things:
 
-- La **Regla de Dependencia** de Clean Architecture (las capas externas
-  dependen de las internas, nunca al revés). Un `import` directo de un
-  Controller a un `UseCase` ya la cumple perfectamente — es la dirección
-  permitida, no la prohibida.
-- **Desacople de despliegue** (poder cambiar qué caso de uso corre sin
-  recompilar el HTTP layer). Esto sí lo resuelve la resolución dinámica
-  por nombre, pero *solo* si HTTP y casos de uso se despliegan como
-  artefactos independientes (arquitectura de plugins). Si todo se
-  ensambla en una sola API — que es el caso normal — esa reflexión no
-  compra nada, solo cuesta: type-safety, records inutilizables, y un bug
-  real que causó (un typo en un nombre de parámetro fallaba en silencio).
+- Clean Architecture's **Dependency Rule** (outer layers depend on inner
+  ones, never the other way around). A direct `import` of a `UseCase`
+  from a Controller already satisfies it perfectly — that's the allowed
+  direction, not the forbidden one.
+- **Deployment decoupling** (being able to change which use case runs
+  without recompiling the HTTP layer). Dynamic resolution by name does
+  solve this, but *only* if HTTP and use cases are deployed as
+  independent artifacts (a plugin architecture). If everything is
+  assembled into a single API — the normal case — that reflection buys
+  nothing and only costs: type safety, unusable records, and a real bug
+  it caused (a typo in a parameter name failed silently).
 
-Si algún proyecto futuro *sí* necesita despliegue desacoplado de verdad
-(plugins, un motor de reglas, casos de uso cargados en runtime), vale la
-pena reconsiderar esto — pero como una decisión explícita para ese
-proyecto, no como default heredado sin cuestionar.
+If some future project *does* genuinely need decoupled deployment
+(plugins, a rules engine, use cases loaded at runtime), it's worth
+reconsidering — but as an explicit decision for that project, not as an
+unquestioned inherited default.
 
-### Cuando un `Request` crece: factory estático con nombre, no Builder
+### When a `Request` grows: named static factory, not a Builder
 
-Con 1-2 campos, `new AlgoRequest(x)` alcanza — es la forma idiomática de
-un record. Pero cuando un `Request` legítimamente se construye distinto
-según el contexto (varios campos, algunos opcionales, distintos
-"caminos" de armado), la tentación es alcanzar un `Builder` (Lombok o a
-mano). No es la herramienta correcta para eso: un builder no dice *qué
-escenario* estás construyendo con solo mirar la llamada — hay que leer
-toda la cadena para inferirlo. Un factory estático con nombre sí lo dice
-de entrada, sigue siendo un record inmutable, y no reintroduce Lombok ni
-reflexión:
+With 1-2 fields, `new SomeRequest(x)` is enough — it's the idiomatic way
+to build a record. But when a `Request` is legitimately built differently
+depending on context (several fields, some optional, different
+"assembly paths"), the temptation is to reach for a `Builder` (Lombok or
+hand-written). It's not the right tool for that: a builder doesn't tell
+you *which scenario* you're building just by looking at the call — you
+have to read the whole chain to infer it. A named static factory says it
+up front, stays an immutable record, and doesn't reintroduce Lombok or
+reflection:
 
 ```java
 public record CreateOrderRequest(String customerId, String promoCode, boolean expedited, String giftMessage)
@@ -122,13 +122,13 @@ public record CreateOrderRequest(String customerId, String promoCode, boolean ex
 }
 ```
 
-Esto gana cuando los contextos son un conjunto enumerable y conocido
-(3-5 formas típicas de construir el objeto). Si la variación es
-genuinamente combinatoria — muchos campos opcionales independientes que
-se combinan de formas no enumerables de antemano — ahí sí un `Builder`
-evita una explosión de métodos factory; es la excepción, no el default.
+This wins when the contexts are a known, enumerable set (3-5 typical
+ways to build the object). If the variation is genuinely combinatorial —
+many independent optional fields combined in ways you can't enumerate up
+front — then a `Builder` does avoid an explosion of factory methods; it's
+the exception, not the default.
 
-## Manejo de errores: `ValidationFailure` sellado, no excepciones sueltas
+## Error handling: sealed `ValidationFailure`, not loose exceptions
 
 ```java
 public sealed interface ValidationFailure permits
@@ -149,59 +149,57 @@ public final class UseCaseException extends RuntimeException {
 }
 ```
 
-Los fallos de negocio siguen viajando por `Mono.error(...)` — para
-Reactor esa **es** la vía idiomática de propagar un fallo, el equivalente
-al canal `Left` de un `Either` ya integrado en la cadena de operadores.
-Lo que cambia es qué viaja ahí: no una `RuntimeException` genérica con un
-`String`, sino un tipo sellado. Quien consuma el error puede hacer
-`switch` exhaustivo sobre `ValidationFailure` — si mañana se agrega una
-variante nueva, el código que no la contempla deja de compilar, en vez de
-caer silenciosamente en una rama por default.
+Business failures still travel through `Mono.error(...)` — for Reactor
+that **is** the idiomatic way to propagate a failure, the equivalent of
+an `Either`'s `Left` channel already built into the operator chain. What
+changes is what travels there: not a generic `RuntimeException` with a
+`String`, but a sealed type. Whoever consumes the error can do an
+exhaustive `switch` over `ValidationFailure` — if a new variant is added
+tomorrow, code that doesn't handle it stops compiling, instead of
+silently falling into a default branch.
 
-No se modela el "no encontrado" como una variante de `Response` — viaja
-por el canal de error igual que cualquier otro `ValidationFailure`. Un
-`Response` sellado sí tiene sentido cuando el *éxito* tiene formas
-distintas (ver `FeatureResponse.Success`/`Error` en los tests como
-ejemplo) — ahí sí conviene sellar el propio `Response` concreto, nunca
-el `Response` compartido de este jar (sus `permits` tendrían que listar
-tipos que no existen todavía cuando este jar se compila — los proyectos
-downstream dependen de dominio, nunca al revés).
+"Not found" is not modeled as a `Response` variant — it travels through
+the error channel like any other `ValidationFailure`. A sealed `Response`
+does make sense when *success* has different shapes (see
+`FeatureResponse.Success`/`Error` in the tests as an example) — there it
+pays to seal the concrete `Response` itself, never this jar's shared
+`Response` (its `permits` would have to list types that don't exist yet
+when this jar is compiled — downstream projects depend on the domain,
+never the other way around).
 
-## Pureza forzada, no solo pedida
+## Purity enforced, not just requested
 
-`DomainPurityTest` (ArchUnit) corre en cada build y falla si cualquier
-clase de `com.usecase` depende de Spring, servlets, JDBC, Apache HTTP,
-Netty o Jackson. Cualquier proyecto que dependa de este jar debería traer
-la misma regla, apuntada a su propio paquete raíz — ver el skill
-`clean-domain-module`.
+`DomainPurityTest` (ArchUnit) runs on every build and fails if any class
+in `com.usecase` depends on Spring, servlets, JDBC, Apache HTTP, Netty or
+Jackson. Any project depending on this jar should bring the same rule,
+pointed at its own root package — see the `clean-domain-module` skill.
 
-## El ecosistema alrededor de este jar
+## The ecosystem around this jar
 
-Este jar es solo la base. El flujo completo de un proyecto nuevo está
-codificado en skills, no en este README (para no duplicar y quedar
-desactualizado):
+This jar is only the foundation. The full flow for a new project is
+encoded in skills, not in this README (to avoid duplication and going
+stale):
 
-- **`gherkin-features`** — bootstrap de un repo `features/` separado
-  (submódulo git, versionado independiente) con el guardrail de lenguaje
-  ubicuo, y el proceso de "3 amigos" para redactar escenarios.
-- **`clean-domain-module`** — scaffold de un nuevo `<name>-domain` sobre
-  este jar, con `ArchUnit` desde el día uno.
-- **`cucumber-red-green`** — conecta los `.feature` externos al código
-  vía Cucumber, casos de uso en rojo primero, implementación después sin
-  tocar el contrato ya aprobado.
-- **`codeartifact-publish`** — publica cualquier jar de este ecosistema a
-  CodeArtifact (dominio `clubix`, repo `koden`).
+- **`gherkin-features`** — bootstraps a separate `features/` repo (git
+  submodule, independently versioned) with the ubiquitous-language
+  guardrail, and the "three amigos" process for drafting scenarios.
+- **`clean-domain-module`** — scaffolds a new `<name>-domain` on top of
+  this jar, with `ArchUnit` from day one.
+- **`cucumber-red-green`** — wires the external `.feature` files to the
+  code via Cucumber, use cases red first, implementation afterwards
+  without touching the already-approved contract.
+- **`codeartifact-publish`** — publishes any jar in this ecosystem to
+  CodeArtifact (domain `clubix`, repo `koden`).
 
-`catalog` (en `projects/catalog/`, con `catalog-core`, `catalog-api`,
-`catalog-repo-h2` y `catalog-features` como repos hermanos adentro) es el
-primer proyecto de referencia que recorrió este flujo completo, de
-features a implementación en verde —
-sirve como ejemplo vivo cuando el código de aquí no alcance a explicar
-algo.
+`catalog` (in `projects/catalog/`, with `catalog-core`, `catalog-api`,
+`catalog-repo-h2` and `catalog-features` as sibling repos inside) is the
+first reference project that went through this full flow, from features
+to a green implementation — it serves as a living example when the code
+here isn't enough to explain something.
 
-## Versionado
+## Versioning
 
-SemVer pre-1.0: bump de minor por cambios incompatibles (mientras el
-major siga en 0), patch para cambios compatibles. `0.1.0 → 0.2.0` fue por
-eliminar las factories reflexivas y parametrizar `UseCase` — un cambio de
-API incompatible.
+Pre-1.0 SemVer: minor bump for incompatible changes (while the major is
+still 0), patch for compatible changes. `0.1.0 → 0.2.0` was due to
+removing the reflective factories and parameterizing `UseCase` — an
+incompatible API change.

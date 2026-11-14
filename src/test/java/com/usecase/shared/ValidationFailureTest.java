@@ -23,9 +23,9 @@ class ValidationFailureTest {
     @Test
     void custom_carries_a_consumer_owned_enum_reason() {
         ValidationFailure failure = new ValidationFailure.Custom<>(
-                SampleReason.INSUFFICIENT_FUNDS, "No cuenta con fondos suficientes");
+                SampleReason.INSUFFICIENT_FUNDS, "Insufficient funds");
 
-        assertEquals("No cuenta con fondos suficientes", failure.message());
+        assertEquals("Insufficient funds", failure.message());
         assertEquals(SampleReason.INSUFFICIENT_FUNDS,
                 ((ValidationFailure.Custom<?>) failure).reason());
     }
