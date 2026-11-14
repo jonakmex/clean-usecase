@@ -19,7 +19,8 @@ public interface UseCase<R extends Request, S extends Response> {
 
 public abstract class AbstractUseCase<R extends Request, S extends Response> implements UseCase<R, S> {
     public final Mono<S> execute(R request) {
-        return Mono.just(request).flatMap(this::guard).flatMap(this::process);
+        return Mono.fromSupplier(() -> Objects.requireNonNull(request, "request must not be null"))
+                .flatMap(this::guard).flatMap(this::process);
     }
     protected Mono<R> guard(R request) { return Mono.just(request); }
     protected abstract Mono<S> process(R request);
