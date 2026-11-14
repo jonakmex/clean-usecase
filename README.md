@@ -174,9 +174,12 @@ never the other way around).
 
 ## Purity enforced, not just requested
 
-`DomainPurityTest` (ArchUnit) runs on every build and fails if any class
-in `com.usecase` depends on Spring, servlets, JDBC, Apache HTTP, Netty or
-Jackson. Any project depending on this jar should bring the same rule,
+`DomainPurityTest` (ArchUnit) runs on every build and fails if any
+production class in `com.usecase` depends on anything outside an
+allowlist: `java.lang`, `java.util`, `java.time`, `java.math`, Reactor
+and Reactive Streams. It's an allowlist rather than a denylist so that a
+library nobody thought to ban (Lombok, Guava, `java.net`, ...) still
+fails the build. Any project depending on this jar should bring the same rule,
 pointed at its own root package — see the `clean-domain-module` skill.
 
 ## The ecosystem around this jar
