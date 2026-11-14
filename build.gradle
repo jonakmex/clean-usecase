@@ -98,9 +98,9 @@ publishing {
     repositories {
         mavenLocal()
 
-        // GitHub Packages. Replaces CodeArtifact, whose 'clubix' domain no
-        // longer exists: publishing there failed and, worse, so did consuming
-        // it — this jar only resolved from one specific machine's ~/.m2.
+        // GitHub Packages, published from CI on v* tags. Replaces AWS
+        // CodeArtifact (domain 'clubix'): other projects still publish there,
+        // but this jar doesn't anymore — only stale 0.1/0.2 snapshots remain.
         maven {
             name = 'githubPackages'
             url = 'https://maven.pkg.github.com/jonakmex/clean-usecase'

@@ -214,8 +214,10 @@ stale):
   without touching the already-approved contract.
 
 Publishing this jar is no longer a skill: CI does it from a tag (see
-[Releasing](#releasing)). The old CodeArtifact target (domain `clubix`)
-no longer exists.
+[Releasing](#releasing)). It used to go to AWS CodeArtifact (domain
+`clubix`, repo `koden`); that domain is still active for other projects,
+but only stale 0.1/0.2 snapshots of this jar remain there — never resolve
+`com.usecase` from it.
 
 `catalog` (in `projects/catalog/`, with `catalog-core`, `catalog-api`,
 `catalog-repo-postgres`, `catalog-web`, `catalog-infra` and
