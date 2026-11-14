@@ -216,3 +216,22 @@ Pre-1.0 SemVer: minor bump for incompatible changes (while the major is
 still 0), patch for compatible changes. `0.1.0 → 0.2.0` was due to
 removing the reflective factories and parameterizing `UseCase` — an
 incompatible API change.
+
+## Releasing
+
+CI (`.github/workflows/ci.yml`) builds and tests every push and PR to
+`main`, but never publishes from there. Publishing to GitHub Packages
+happens only from a `v*` tag, and only if the tag matches the version in
+`build.gradle`:
+
+1. Set `version = 'X.Y.Z'` (no `-SNAPSHOT`) in `build.gradle` and commit.
+2. `git tag vX.Y.Z && git push origin main vX.Y.Z`.
+3. Bump to the next `-SNAPSHOT` and commit.
+
+The workflow publishes with the run's own `GITHUB_TOKEN` — no secrets to
+configure. Release versions are immutable in GitHub Packages, so a tag
+can't be republished; fix forward with a new patch version.
+
+Consuming the jar requires authentication even though the repo is
+public: GitHub Packages doesn't allow anonymous Maven downloads. Use a
+personal access token with `read:packages`.

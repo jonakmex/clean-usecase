@@ -1,0 +1,57 @@
+name: CI
+
+# Pushes and PRs to main only build and test. Publishing to GitHub Packages
+# happens only when a v* tag is pushed, and only if the tag matches the
+# version in build.gradle (e.g. tag v0.4.0 <-> version = '0.4.0').
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew build
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Check tag matches a release version
+        run: |
+          version=$(./gradlew -q properties --property version | sed -n 's/^version: //p')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match project version $version"
+            exit 1
+          fi
+          case "$version" in
+            *-SNAPSHOT) echo "::error::Refusing to publish a SNAPSHOT from a tag"; exit 1 ;;
+          esac
+
+      # build.gradle reads GITHUB_ACTOR (set by Actions) and GITHUB_TOKEN.
+      - run: ./gradlew publishMavenJavaPublicationToGithubPackagesRepository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
