@@ -1,5 +1,7 @@
 package com.usecase.shared;
 
+import java.util.Objects;
+
 public sealed interface ValidationFailure permits
         ValidationFailure.MissingField,
         ValidationFailure.InvalidValue,
@@ -12,6 +14,10 @@ public sealed interface ValidationFailure permits
     String message();
 
     record MissingField(String field) implements ValidationFailure {
+        public MissingField {
+            Objects.requireNonNull(field, "field must not be null");
+        }
+
         @Override
         public String message() {
             return field + " is required";
@@ -19,6 +25,11 @@ public sealed interface ValidationFailure permits
     }
 
     record InvalidValue(String field, String reason) implements ValidationFailure {
+        public InvalidValue {
+            Objects.requireNonNull(field, "field must not be null");
+            Objects.requireNonNull(reason, "reason must not be null");
+        }
+
         @Override
         public String message() {
             return field + ": " + reason;
@@ -26,6 +37,11 @@ public sealed interface ValidationFailure permits
     }
 
     record NotFound(String entity, String id) implements ValidationFailure {
+        public NotFound {
+            Objects.requireNonNull(entity, "entity must not be null");
+            Objects.requireNonNull(id, "id must not be null");
+        }
+
         @Override
         public String message() {
             return entity + " not found: " + id;
@@ -33,6 +49,10 @@ public sealed interface ValidationFailure permits
     }
 
     record Forbidden(String reason) implements ValidationFailure {
+        public Forbidden {
+            Objects.requireNonNull(reason, "reason must not be null");
+        }
+
         @Override
         public String message() {
             return reason;
@@ -45,6 +65,11 @@ public sealed interface ValidationFailure permits
      * {@link NotFound} — the entity is real, just not currently eligible.
      */
     record NotActive(String entity, String id) implements ValidationFailure {
+        public NotActive {
+            Objects.requireNonNull(entity, "entity must not be null");
+            Objects.requireNonNull(id, "id must not be null");
+        }
+
         @Override
         public String message() {
             return entity + " is not active: " + id;
@@ -56,6 +81,11 @@ public sealed interface ValidationFailure permits
      * exists (e.g. a phone number already registered as a customer).
      */
     record Conflict(String entity, String id) implements ValidationFailure {
+        public Conflict {
+            Objects.requireNonNull(entity, "entity must not be null");
+            Objects.requireNonNull(id, "id must not be null");
+        }
+
         @Override
         public String message() {
             return entity + " already exists: " + id;
@@ -70,5 +100,9 @@ public sealed interface ValidationFailure permits
      * change again as new domain-specific reasons come up.
      */
     record Custom<T extends Enum<T>>(T reason, String message) implements ValidationFailure {
+        public Custom {
+            Objects.requireNonNull(reason, "reason must not be null");
+            Objects.requireNonNull(message, "message must not be null");
+        }
     }
 }

@@ -1,8 +1,10 @@
 package com.usecase.shared;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ValidationFailureTest {
 
@@ -28,5 +30,26 @@ class ValidationFailureTest {
         assertEquals("Insufficient funds", failure.message());
         assertEquals(SampleReason.INSUFFICIENT_FUNDS,
                 ((ValidationFailure.Custom<?>) failure).reason());
+    }
+
+    @Test
+    void rejects_null_components() {
+        assertNullRejected("field", () -> new ValidationFailure.MissingField(null));
+        assertNullRejected("field", () -> new ValidationFailure.InvalidValue(null, "reason"));
+        assertNullRejected("reason", () -> new ValidationFailure.InvalidValue("field", null));
+        assertNullRejected("entity", () -> new ValidationFailure.NotFound(null, "id"));
+        assertNullRejected("id", () -> new ValidationFailure.NotFound("entity", null));
+        assertNullRejected("reason", () -> new ValidationFailure.Forbidden(null));
+        assertNullRejected("entity", () -> new ValidationFailure.NotActive(null, "id"));
+        assertNullRejected("id", () -> new ValidationFailure.NotActive("entity", null));
+        assertNullRejected("entity", () -> new ValidationFailure.Conflict(null, "id"));
+        assertNullRejected("id", () -> new ValidationFailure.Conflict("entity", null));
+        assertNullRejected("reason", () -> new ValidationFailure.Custom<SampleReason>(null, "message"));
+        assertNullRejected("message", () -> new ValidationFailure.Custom<>(SampleReason.INSUFFICIENT_FUNDS, null));
+    }
+
+    private static void assertNullRejected(String component, Executable construction) {
+        NullPointerException e = assertThrows(NullPointerException.class, construction);
+        assertEquals(component + " must not be null", e.getMessage());
     }
 }
