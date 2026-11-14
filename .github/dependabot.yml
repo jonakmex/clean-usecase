@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Gradle dependencies and the wrapper. Grouped so a week's bumps arrive
+  # as one PR, which CI must pass before merging.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      gradle:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
