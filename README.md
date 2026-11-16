@@ -143,8 +143,10 @@ public sealed interface DomainFailure permits
         DomainFailure.Forbidden,
         DomainFailure.NotActive,
         DomainFailure.Conflict,
-        DomainFailure.Custom {
+        DomainFailure.Custom,
+        DomainFailure.Multiple {
     String message();
+    static DomainFailure combine(List<? extends DomainFailure> failures) { ... }
     record MissingField(String field) implements DomainFailure { ... }
     record InvalidValue(String field, String reason) implements DomainFailure { ... }
     record NotFound(String entity, String id) implements DomainFailure { ... }
@@ -152,6 +154,7 @@ public sealed interface DomainFailure permits
     record NotActive(String entity, String id) implements DomainFailure { ... }
     record Conflict(String entity, String id) implements DomainFailure { ... }
     record Custom<T extends Enum<T>>(T reason, String message) implements DomainFailure { ... }
+    record Multiple(List<DomainFailure> failures) implements DomainFailure { ... }
 }
 
 public final class UseCaseException extends RuntimeException {
@@ -173,6 +176,25 @@ silently falling into a default branch.
 domain (e.g. insufficient funds in a ledger): the consumer defines its
 own enum and this jar doesn't need a new variant for it. Every component
 of every variant is non-null — the records reject `null` at construction.
+
+`Multiple` reports several failures at once — every missing detail of a
+registration, say — so the caller fixes them all in one attempt instead
+of discovering them one per round trip. It always holds at least two
+failures and never nests. Build it with `DomainFailure.combine(list)`:
+one failure comes back as is, several become a flattened `Multiple`. A
+`guard()` that checks independent rules can collect them all and reject
+once:
+
+```java
+@Override
+protected Mono<RegisterRequest> guard(RegisterRequest request) {
+    return Flux.concat(requireName(request), requireEmail(request))   // each Mono<DomainFailure>, empty when fine
+            .collectList()
+            .flatMap(failures -> failures.isEmpty()
+                    ? Mono.just(request)
+                    : Mono.error(new UseCaseException(DomainFailure.combine(failures))));
+}
+```
 
 It was called `ValidationFailure` up to 0.3.x. Renamed because most
 variants aren't validation at all — `NotFound`, `Conflict`, `Forbidden`
@@ -238,6 +260,10 @@ incompatible API change.
 - `0.4.0` renamed `ValidationFailure` to `DomainFailure`, made an empty
   `guard()` signal an error instead of skipping `process()`, and made
   `DomainFailure` records reject `null` components.
+- `0.5.0` added `Multiple` and `DomainFailure.combine()`. `apiCheck`
+  doesn't flag a new permitted subtype of a sealed interface (japicmp
+  sees it as an addition), so the minor bump for these is a manual
+  decision — see [API compatibility](#api-compatibility).
 
 ## Releasing
 
@@ -260,6 +286,11 @@ source-incompatible change fails the build. That's why step 3 bumps the
 patch, not the minor: a breaking change then forces a deliberate edit to
 the next minor (pre-1.0 SemVer), instead of slipping into a patch release
 that every consumer would pick up as safe.
+
+It does **not** catch a new variant of a sealed interface such as
+`DomainFailure`: for japicmp that's an added class, compatible, yet it
+breaks every consumer's exhaustive `switch`. Bump the minor by hand
+whenever a sealed type gains a permitted subtype.
 
 It runs as part of `check` on CI. Locally, run `./gradlew apiCheck` with
 `GITHUB_TOKEN` set to a PAT that has `read:packages`; the report lands in

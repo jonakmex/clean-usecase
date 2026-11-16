@@ -3,7 +3,12 @@ package com.usecase.shared;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DomainFailureTest {
@@ -56,6 +61,51 @@ class DomainFailureTest {
                 ((DomainFailure.Custom<?>) failure).reason());
     }
 
+    private static final DomainFailure NAME = new DomainFailure.MissingField("name");
+    private static final DomainFailure EMAIL = new DomainFailure.MissingField("email");
+    private static final DomainFailure PHONE = new DomainFailure.InvalidValue("phone", "must have 10 digits");
+
+    @Test
+    void multiple_reports_every_failure() {
+        DomainFailure failure = new DomainFailure.Multiple(List.of(NAME, EMAIL));
+        assertEquals("name is required; email is required", failure.message());
+    }
+
+    @Test
+    void multiple_keeps_its_own_copy_of_the_failures() {
+        List<DomainFailure> failures = new ArrayList<>(List.of(NAME, EMAIL));
+        DomainFailure.Multiple multiple = new DomainFailure.Multiple(failures);
+        failures.add(PHONE);
+
+        assertEquals(List.of(NAME, EMAIL), multiple.failures());
+        assertThrows(UnsupportedOperationException.class, () -> multiple.failures().add(PHONE));
+    }
+
+    @Test
+    void multiple_needs_at_least_two_failures_and_no_nesting() {
+        assertThrows(IllegalArgumentException.class, () -> new DomainFailure.Multiple(List.of(NAME)));
+        assertThrows(IllegalArgumentException.class, () -> new DomainFailure.Multiple(
+                List.of(NAME, new DomainFailure.Multiple(List.of(EMAIL, PHONE)))));
+    }
+
+    @Test
+    void combine_returns_a_single_failure_as_is() {
+        assertSame(NAME, DomainFailure.combine(List.of(NAME)));
+    }
+
+    @Test
+    void combine_turns_several_failures_into_multiple_and_flattens() {
+        DomainFailure combined = DomainFailure.combine(
+                List.of(NAME, new DomainFailure.Multiple(List.of(EMAIL, PHONE))));
+
+        assertEquals(new DomainFailure.Multiple(List.of(NAME, EMAIL, PHONE)), combined);
+    }
+
+    @Test
+    void combine_rejects_an_empty_list() {
+        assertThrows(IllegalArgumentException.class, () -> DomainFailure.combine(List.of()));
+    }
+
     @Test
     void rejects_null_components() {
         assertNullRejected("field", () -> new DomainFailure.MissingField(null));
@@ -70,6 +120,11 @@ class DomainFailureTest {
         assertNullRejected("id", () -> new DomainFailure.Conflict("entity", null));
         assertNullRejected("reason", () -> new DomainFailure.Custom<SampleReason>(null, "message"));
         assertNullRejected("message", () -> new DomainFailure.Custom<>(SampleReason.INSUFFICIENT_FUNDS, null));
+        assertNullRejected("failures", () -> new DomainFailure.Multiple(null));
+        assertNullRejected("failures", () -> DomainFailure.combine(null));
+        NullPointerException e = assertThrows(NullPointerException.class,
+                () -> new DomainFailure.Multiple(Arrays.asList(NAME, null)));
+        assertEquals("failures must not contain null", e.getMessage());
     }
 
     private static void assertNullRejected(String component, Executable construction) {
