@@ -260,10 +260,7 @@ incompatible API change.
 - `0.4.0` renamed `ValidationFailure` to `DomainFailure`, made an empty
   `guard()` signal an error instead of skipping `process()`, and made
   `DomainFailure` records reject `null` components.
-- `0.5.0` added `Multiple` and `DomainFailure.combine()`. `apiCheck`
-  doesn't flag a new permitted subtype of a sealed interface (japicmp
-  sees it as an addition), so the minor bump for these is a manual
-  decision — see [API compatibility](#api-compatibility).
+- `0.5.0` added `Multiple` and `DomainFailure.combine()`.
 
 ## Releasing
 
@@ -289,8 +286,10 @@ that every consumer would pick up as safe.
 
 It does **not** catch a new variant of a sealed interface such as
 `DomainFailure`: for japicmp that's an added class, compatible, yet it
-breaks every consumer's exhaustive `switch`. Bump the minor by hand
-whenever a sealed type gains a permitted subtype.
+breaks every consumer's exhaustive `switch`. `DomainFailureVariantsTest`
+covers that gap: it pins the variants and the minor that last changed
+them (`VARIANTS_SINCE`), and fails until the version is bumped to that
+minor. It runs on every build, no token needed.
 
 It runs as part of `check` on CI. Locally, run `./gradlew apiCheck` with
 `GITHUB_TOKEN` set to a PAT that has `read:packages`; the report lands in

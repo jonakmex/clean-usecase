@@ -52,7 +52,12 @@ dependencies {
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.5.1'
 }
 
-test { useJUnitPlatform() }
+test {
+    useJUnitPlatform()
+    // DomainFailureVariantsTest checks the version against the minor that
+    // last changed DomainFailure's variants.
+    systemProperty 'project.version', version.toString()
+}
 
 // Records and one-line contracts don't need a Javadoc comment each; keep
 // the rest of doclint (broken HTML, bad references) on.
